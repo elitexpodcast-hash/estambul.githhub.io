@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>Untitled</title>
+    
+
+  </head>
+    
+  <body>
+  <!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trip Cost Planner - Pro Edition</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        primary: '#3b82f6',
+                        primaryDark: '#2563eb',
+                        secondary: '#10b981',
+                        dark: '#0f172a',
+                        light: '#f8fafc'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #334155; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; rounded: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .smooth-transition { transition: all 0.3s ease; }
+        
+        /* Ocultar flechas de inputs number */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        
+        .tab-active { border-bottom-color: #3b82f6 !important; color: #3b82f6 !important; font-weight: 600; }
+        
+        /* Status Badges Selects */
+        .status-select.pending { background-color: #fef3c7; color: #b45309; border-color: #fde68a; }
+        .status-select.booked { background-color: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
+        .status-select.paid { background-color: #d1fae5; color: #047857; border-color: #a7f3d0; }
+    </style>
+</head>
+<body class="h-screen overflow-hidden flex flex-col custom-scrollbar">
+
+    <nav class="bg-dark text-white shadow-md z-20 flex-shrink-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-3">
+                    <div class="bg-primary p-2 rounded-lg shadow-lg shadow-primary/30"><i class="fa-solid fa-plane-departure text-white"></i></div>
+                    <div>
+                        <h1 class="text-xl font-bold tracking-tight">Trip Cost Planner Pro</h1>
+                        <p class="text-[10px] text-slate-400 uppercase tracking-widest font-medium">Comparador de Itinerarios Inteligente</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <select id="scenario-selector" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-primary focus:border-primary block w-64 p-2.5 smooth-transition font-medium" onchange="app.switchScenario(this.value)">
+                    </select>
+                    <button onclick="app.createScenario()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-sm smooth-transition shadow-sm" title="Nuevo Escenario"><i class="fa-solid fa-plus"></i></button>
+                    <button onclick="app.duplicateScenario()" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-sm smooth-transition shadow-sm" title="Duplicar"><i class="fa-regular fa-copy"></i></button>
+                    <button onclick="app.deleteScenario()" class="bg-red-900 hover:bg-red-800 text-white px-3 py-2 rounded-lg text-sm smooth-transition shadow-sm" title="Eliminar"><i class="fa-regular fa-trash-can"></i></button>
+                    
+                    <div class="w-px h-8 bg-slate-700 mx-2"></div>
+                    
+                    <button onclick="app.exportData()" class="text-slate-300 hover:text-white transition-colors" title="Exportar JSON"><i class="fa-solid fa-download"></i></button>
+                    <label class="cursor-pointer text-slate-300 hover:text-white transition-colors" title="Importar JSON">
+                        <i class="fa-solid fa-upload"></i>
+                        <input type="file" class="hidden" accept=".json" onchange="app.importData(event)">
+                    </label>
+                    <button onclick="app.resetDemo()" class="text-slate-300 hover:text-white transition-colors" title="Resetear a Demo"><i class="fa-solid fa-rotate-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="flex flex-1 overflow-hidden">
+        
+        <aside class="w-72 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)] hidden md:flex">
+            <div class="p-5 flex-1 overflow-y-auto custom-scrollbar">
+                
+                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center"><i class="fa-solid fa-earth-americas mr-2"></i> Datos Globales del Viaje</h2>
+                <div class="space-y-4 mb-6">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-medium text-slate-500 mb-1 uppercase">Inicio Global</label>
+                            <input type="date" id="g-start" class="bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-lg focus:ring-primary focus:border-primary block w-full p-2" onchange="app.updateSettings('startDate', this.value)">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-medium text-slate-500 mb-1 uppercase">Fin Global</label>
+                            <input type="date" id="g-end" class="bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-lg focus:ring-primary focus:border-primary block w-full p-2" onchange="app.updateSettings('endDate', this.value)">
+                        </div>
+                    </div>
+                </div>
+
+                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center"><i class="fa-solid fa-gear mr-2"></i> Parámetros Financieros</h2>
+                <div class="space-y-4">
+                    <div class="flex gap-2">
+                        <div class="flex-1">
+                            <label class="block text-xs font-medium text-slate-500 mb-1">Viajeros</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-users absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm"></i>
+                                <input type="number" id="g-pax" min="1" class="pl-9 bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 font-medium" onchange="app.updateSettings('pax', this.value)">
+                            </div>
+                        </div>
+                        <div class="w-20">
+                            <label class="block text-xs font-medium text-slate-500 mb-1">Moneda</label>
+                            <select id="g-currency" class="bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 font-medium" onchange="app.updateSettings('currency', this.value)">
+                                <option value="€">EUR</option>
+                                <option value="$">USD</option>
+                                <option value="£">GBP</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Presupuesto Máx. Total</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-sack-dollar absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm"></i>
+                            <input type="number" id="g-budget" class="pl-9 bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 font-medium" onchange="app.updateSettings('budget', this.value)">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1 flex justify-between">
+                            <span>Fondo Imprevistos (%)</span>
+                            <span title="Un % extra que se suma al total para cubrir gastos no previstos"><i class="fa-solid fa-circle-info"></i></span>
+                        </label>
+                        <div class="relative">
+                            <i class="fa-solid fa-shield-halved absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm"></i>
+                            <input type="number" id="g-contingency" min="0" max="100" class="pl-9 bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 font-medium" onchange="app.updateSettings('contingency', this.value)">
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-6 border-slate-100">
+
+                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center"><i class="fa-solid fa-pen-to-square mr-2"></i> Detalles Escenario Actual</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Nombre</label>
+                        <input type="text" id="s-name" class="bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 font-medium" onchange="app.updateActiveScenario('name', this.value)">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Notas Generales</label>
+                        <textarea id="s-notes" rows="3" class="bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 resize-none custom-scrollbar" placeholder="Propósito del viaje, links de interés global..." onchange="app.updateActiveScenario('notes', this.value)"></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="sidebar-summary" class="bg-slate-50 p-5 border-t border-slate-200">
+                </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col overflow-hidden bg-[#f8fafc] relative">
+            
+            <div class="px-4 md:px-8 pt-8 pb-4 flex-shrink-0">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4" id="kpi-container">
+                    </div>
+            </div>
+
+            <div class="px-4 md:px-8 border-b border-slate-200 flex-shrink-0 overflow-x-auto custom-scrollbar">
+                <nav class="flex space-x-8 min-w-max" aria-label="Tabs">
+                    <button onclick="app.switchTab('itinerary')" id="tab-itinerary" class="tab-active border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                        <i class="fa-solid fa-bed mr-2"></i> Alojamiento & Ruta
+                    </button>
+                    <button onclick="app.switchTab('transport')" id="tab-transport" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                        <i class="fa-solid fa-plane mr-2"></i> Transporte
+                    </button>
+                    <button onclick="app.switchTab('extras')" id="tab-extras" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                        <i class="fa-solid fa-receipt mr-2"></i> Extras & Tareas
+                    </button>
+                    <button onclick="app.switchTab('analysis')" id="tab-analysis" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                        <i class="fa-solid fa-chart-pie mr-2"></i> Dashboard & Insights
+                    </button>
+                    <button onclick="app.switchTab('comparator')" id="tab-comparator" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                        <i class="fa-solid fa-scale-balanced mr-2"></i> Comparador Total
+                    </button>
+                </nav>
+            </div>
+
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8" id="tab-content">
+                </div>
+
+        </main>
+    </div>
+
+    <script>
+        // --- DATA STRUCTURE & DEMO DATA ---
+        const DEMO_DATA = {
+            settings: { 
+                pax: 2, 
+                currency: '€', 
+                budget: 4000, 
+                contingency: 5,
+                startDate: '2026-07-01',
+                endDate: '2026-07-16'
+            },
+            activeScenarioId: 's1',
+            scenarios: [
+                {
+                    id: 's1',
+                    name: 'Escenario A: Grecia Clásica + Estambul',
+                    notes: 'Ruta equilibrada. Vuelo a Estambul, luego Atenas y ferry a las islas. Necesitamos mirar bien los horarios de los ferries.',
+                    accommodations: [
+                        { id: 'a1', city: 'Estambul', country: 'Turquía', start: '2026-07-01', end: '2026-07-06', type: 'Hotel 4*', pricePerNight: 95, link: 'https://booking.com/ejemplo', status: 'paid', notes: 'Desayuno incluido' },
+                        { id: 'a2', city: 'Atenas', country: 'Grecia', start: '2026-07-06', end: '2026-07-09', type: 'Airbnb', pricePerNight: 85, link: '', status: 'booked', notes: 'Cerca de Plaka' },
+                        { id: 'a3', city: 'Milos', country: 'Grecia', start: '2026-07-09', end: '2026-07-13', type: 'Hotel Boutique', pricePerNight: 140, link: '', status: 'pending', notes: '' },
+                        { id: 'a4', city: 'Santorini', country: 'Grecia', start: '2026-07-13', end: '2026-07-16', type: 'Hotel', pricePerNight: 210, link: '', status: 'pending', notes: 'Vistas a la caldera' }
+                    ],
+                    transports: [
+                        { id: 't1', origin: 'Madrid', destination: 'Estambul', type: 'Vuelo', company: 'Turkish Airlines', priceTotal: 450, isPerPerson: true, date: '2026-07-01', status: 'paid', link: '' },
+                        { id: 't2', origin: 'Estambul', destination: 'Atenas', type: 'Vuelo', company: 'Aegean', priceTotal: 120, isPerPerson: true, date: '2026-07-06', status: 'booked', link: '' },
+                        { id: 't3', origin: 'Atenas', destination: 'Milos', type: 'Ferry', company: 'Seajets', priceTotal: 65, isPerPerson: true, date: '2026-07-09', status: 'pending', link: '' },
+                        { id: 't4', origin: 'Milos', destination: 'Santorini', type: 'Ferry', company: 'Blue Star', priceTotal: 85, isPerPerson: true, date: '2026-07-13', status: 'pending', link: '' },
+                        { id: 't5', origin: 'Santorini', destination: 'Madrid', type: 'Vuelo', company: 'Iberia', priceTotal: 280, isPerPerson: true, date: '2026-07-16', status: 'pending', link: '' },
+                        { id: 't6', origin: 'Milos', destination: 'Milos', type: 'Coche Alquiler', company: 'Local Rent', priceTotal: 180, isPerPerson: false, date: '2026-07-09', status: 'pending', link: '' }
+                    ],
+                    extras: [
+                        { id: 'e1', name: 'Seguro de Viaje', category: 'Seguros', amount: 45, isPerPerson: true, status: 'paid' },
+                        { id: 'e2', name: 'Entradas Acrópolis', category: 'Actividades', amount: 20, isPerPerson: true, status: 'pending' },
+                        { id: 'e4', name: 'Bote Comidas Estimado', category: 'Comida', amount: 900, isPerPerson: true, status: 'pending' },
+                        { id: 'e5', name: 'e-Visa Turquía', category: 'Visados', amount: 35, isPerPerson: true, status: 'pending' }
+                    ],
+                    checklist: [
+                        { id: 'c1', task: 'Sacar pasaporte nuevo (caduca pronto)', done: false },
+                        { id: 'c2', task: 'Comprar tarjeta eSIM para Turquía', done: false },
+                        { id: 'c3', task: 'Reservar restaurante en Santorini', done: false }
+                    ]
+                },
+                {
+                    id: 's2',
+                    name: 'Escenario B: Full Turquía',
+                    notes: 'Ruta alternativa para evitar vuelos internos caros de Grecia.',
+                    accommodations: [
+                        { id: 'a1', city: 'Estambul', country: 'Turquía', start: '2026-07-01', end: '2026-07-06', type: 'Hotel', pricePerNight: 95, link: '', status: 'paid', notes: '' },
+                        { id: 'a2', city: 'Capadocia', country: 'Turquía', start: '2026-07-06', end: '2026-07-09', type: 'Hotel Cueva', pricePerNight: 130, link: '', status: 'pending', notes: '' },
+                        { id: 'a3', city: 'Bodrum', country: 'Turquía', start: '2026-07-09', end: '2026-07-16', type: 'Resort', pricePerNight: 160, link: '', status: 'pending', notes: '' }
+                    ],
+                    transports: [
+                        { id: 't1', origin: 'Madrid', destination: 'Estambul', type: 'Vuelo', company: 'Pegasus', priceTotal: 350, isPerPerson: true, date: '2026-07-01', status: 'paid', link: '' },
+                        { id: 't2', origin: 'Estambul', destination: 'Kayseri', type: 'Vuelo', company: '', priceTotal: 50, isPerPerson: true, date: '2026-07-06', status: 'pending', link: '' },
+                        { id: 't6', origin: 'Bodrum', destination: 'Bodrum', type: 'Coche Alquiler', company: '', priceTotal: 250, isPerPerson: false, date: '2026-07-09', status: 'pending', link: '' }
+                    ],
+                    extras: [
+                        { id: 'e1', name: 'Globo Capadocia', category: 'Actividades', amount: 250, isPerPerson: true, status: 'pending' }
+                    ],
+                    checklist: []
+                }
+            ]
+        };
+
+        // --- STATE MANAGEMENT ---
+        let appState = null;
+        let currentTab = 'itinerary';
+        let charts = {};
+
+        // --- CORE APP LOGIC ---
+        const app = {
+            init() {
+                const saved = localStorage.getItem('tripPlannerDataPro');
+                if (saved) {
+                    try { appState = JSON.parse(saved); } catch (e) { appState = JSON.parse(JSON.stringify(DEMO_DATA)); }
+                } else {
+                    appState = JSON.parse(JSON.stringify(DEMO_DATA));
+                }
+                
+                // Migración por si faltan campos en versiones antiguas
+                appState.scenarios.forEach(s => {
+                    s.accommodations.forEach(a => { a.status = a.status || 'pending'; a.notes = a.notes || ''; });
+                    s.transports.forEach(t => { t.status = t.status || 'pending'; t.company = t.company || ''; });
+                    s.extras.forEach(e => { e.status = e.status || 'pending'; });
+                });
+
+                if (!appState.scenarios.find(s => s.id === appState.activeScenarioId)) {
+                    appState.activeScenarioId = appState.scenarios[0].id;
+                }
+
+                this.bindGlobalInputs();
+                this.render();
+            },
+
+            save() {
+                localStorage.setItem('tripPlannerDataPro', JSON.stringify(appState));
+                this.render(); 
+            },
+
+            getActiveScenario() {
+                return appState.scenarios.find(s => s.id === appState.activeScenarioId);
+            },
+
+            // --- CALCULATIONS ---
+            calculateNights(start, end) {
+                if (!start || !end) return 0;
+                const d1 = new Date(start);
+                const d2 = new Date(end);
+                const diff = (d2 - d1) / (1000 * 60 * 60 * 24);
+                return diff > 0 ? diff : 0;
+            },
+
+            calcScenarioData(scenario) {
+                let totals = { acc: 0, trans: 0, extras: 0, total: 0, pp: 0, nights: 0, countries: {}, daily: 0, totalPaid: 0, totalPending: 0, undefinedCosts: 0 };
+                const pax = appState.settings.pax;
+
+                // Function to handle status grouping
+                const addCost = (amount, status) => {
+                    if(amount === 0) totals.undefinedCosts++;
+                    if(status === 'paid') totals.totalPaid += amount;
+                    else totals.totalPending += amount; // pending or booked counts as pending payment
+                };
+
+                // Acc
+                scenario.accommodations.forEach(a => {
+                    const n = this.calculateNights(a.start, a.end);
+                    const cost = n * a.pricePerNight;
+                    totals.acc += cost;
+                    totals.nights += n;
+                    if(a.country) totals.countries[a.country] = (totals.countries[a.country] || 0) + cost;
+                    addCost(cost, a.status);
+                });
+
+                // Trans
+                scenario.transports.forEach(t => {
+                    const cost = t.isPerPerson ? (t.priceTotal * pax) : t.priceTotal;
+                    totals.trans += cost;
+                    addCost(cost, t.status);
+                });
+
+                // Extras
+                scenario.extras.forEach(e => {
+                    const cost = e.isPerPerson ? (e.amount * pax) : e.amount;
+                    totals.extras += cost;
+                    addCost(cost, e.status);
+                });
+
+                // Contingency (always pending)
+                const subtotal = totals.acc + totals.trans + totals.extras;
+                const contingencyAmount = subtotal * (appState.settings.contingency / 100);
+                
+                totals.contingency = contingencyAmount;
+                totals.totalPending += contingencyAmount;
+
+                totals.total = subtotal + contingencyAmount;
+                totals.pp = pax > 0 ? totals.total / pax : 0;
+                totals.daily = totals.nights > 0 ? totals.total / totals.nights : 0;
+                totals.dailyPP = totals.nights > 0 && pax > 0 ? totals.pp / totals.nights : 0;
+                
+                totals.isOverBudget = totals.total > appState.settings.budget;
+
+                return totals;
+            },
+
+            formatMoney(amount) {
+                return new Intl.NumberFormat('es-ES', { style: 'currency', currency: appState.settings.currency === '€' ? 'EUR' : (appState.settings.currency === '$' ? 'USD' : 'GBP'), maximumFractionDigits: 0 }).format(amount);
+            },
+
+            getStatusClass(status) {
+                if(status === 'paid') return 'paid';
+                if(status === 'booked') return 'booked';
+                return 'pending';
+            },
+
+            // --- ACTIONS ---
+            switchScenario(id) { appState.activeScenarioId = id; this.save(); },
+            
+            createScenario() {
+                const newId = 's' + Date.now();
+                appState.scenarios.push({
+                    id: newId, name: 'Nuevo Escenario', notes: '',
+                    accommodations: [], transports: [], extras: [], checklist: []
+                });
+                appState.activeScenarioId = newId;
+                this.save();
+            },
+
+            duplicateScenario() {
+                const current = this.getActiveScenario();
+                const copy = JSON.parse(JSON.stringify(current));
+                copy.id = 's' + Date.now();
+                copy.name = copy.name + ' (Copia)';
+                appState.scenarios.push(copy);
+                appState.activeScenarioId = copy.id;
+                this.save();
+            },
+
+            deleteScenario() {
+                if (appState.scenarios.length <= 1) return alert("No puedes eliminar el único escenario.");
+                if (confirm("¿Seguro que quieres borrar este escenario?")) {
+                    appState.scenarios = appState.scenarios.filter(s => s.id !== appState.activeScenarioId);
+                    appState.activeScenarioId = appState.scenarios[0].id;
+                    this.save();
+                }
+            },
+
+            updateSettings(key, value) {
+                appState.settings[key] = (key === 'pax' || key === 'budget' || key === 'contingency') ? Number(value) : value;
+                this.save();
+            },
+
+            updateActiveScenario(key, value) {
+                const s = this.getActiveScenario();
+                s[key] = value;
+                this.save();
+            },
+
+            switchTab(tabId) {
+                currentTab = tabId;
+                document.querySelectorAll('nav button').forEach(b => {
+                    b.classList.remove('tab-active', 'border-primary', 'text-primary');
+                    b.classList.add('border-transparent', 'text-slate-500');
+                });
+                const activeBtn = document.getElementById(`tab-${tabId}`);
+                activeBtn.classList.remove('border-transparent', 'text-slate-500');
+                activeBtn.classList.add('tab-active');
+                this.renderTabContent();
+            },
+
+            exportData() {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState));
+                const dlAnchorElem = document.createElement('a');
+                dlAnchorElem.setAttribute("href", dataStr);
+                dlAnchorElem.setAttribute("download", `TripPlanner_${new Date().toISOString().split('T')[0]}.json`);
+                dlAnchorElem.click();
+            },
+
+            importData(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const imported = JSON.parse(e.target.result);
+                        if(imported.settings && imported.scenarios) {
+                            appState = imported;
+                            this.save();
+                        } else { alert("Formato JSON no válido."); }
+                    } catch (err) { alert("Error al leer el archivo."); }
+                };
+                reader.readAsText(file);
+            },
+
+            resetDemo() {
+                if(confirm("¿Restaurar datos de demostración? Se perderán tus cambios.")) {
+                    appState = JSON.parse(JSON.stringify(DEMO_DATA));
+                    this.save();
+                }
+            },
+
+            // --- RENDERERS ---
+            bindGlobalInputs() {
+                document.getElementById('g-pax').value = appState.settings.pax;
+                document.getElementById('g-budget').value = appState.settings.budget;
+                document.getElementById('g-contingency').value = appState.settings.contingency;
+                document.getElementById('g-currency').value = appState.settings.currency;
+                if(appState.settings.startDate) document.getElementById('g-start').value = appState.settings.startDate;
+                if(appState.settings.endDate) document.getElementById('g-end').value = appState.settings.endDate;
+            },
+
+            render() {
+                const s = this.getActiveScenario();
+                
+                // Update dropdown
+                const sel = document.getElementById('scenario-selector');
+                sel.innerHTML = appState.scenarios.map(sc => `<option value="${sc.id}" ${sc.id === s.id ? 'selected' : ''}>${sc.name}</option>`).join('');
+                
+                // Update Sidebar Scenario details
+                document.getElementById('s-name').value = s.name;
+                document.getElementById('s-notes').value = s.notes;
+
+                const totals = this.calcScenarioData(s);
+                const percPaid = totals.total > 0 ? (totals.totalPaid / totals.total) * 100 : 0;
+
+                // Update Sidebar Summary
+                document.getElementById('sidebar-summary').innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-semibold text-slate-700">Coste Total</span>
+                        <span class="text-lg font-bold text-slate-900">${this.formatMoney(totals.total)}</span>
+                    </div>
+                    <div class="flex justify-between items-center mb-3 text-xs">
+                        <span class="text-slate-500">Restante (Presupuesto)</span>
+                        <span class="font-medium ${totals.isOverBudget ? 'text-red-500' : 'text-secondary'}">${totals.isOverBudget ? '-' : ''}${this.formatMoney(Math.abs(appState.settings.budget - totals.total))}</span>
+                    </div>
+
+                    <div class="w-full bg-slate-200 rounded-full h-1.5 mb-2 overflow-hidden flex">
+                        <div class="bg-primary h-1.5" style="width: ${Math.min((totals.total / appState.settings.budget) * 100, 100)}%"></div>
+                        ${totals.isOverBudget ? `<div class="bg-red-500 h-1.5 flex-1"></div>` : ''}
+                    </div>
+                    
+                    <div class="mt-4 pt-4 border-t border-slate-200">
+                        <p class="text-xs text-slate-500 mb-2">Progreso de Pagos</p>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-medium text-emerald-600">Pagado</span>
+                            <span class="text-xs font-bold text-emerald-700">${this.formatMoney(totals.totalPaid)}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-medium text-amber-600">Pendiente</span>
+                            <span class="text-xs font-bold text-amber-700">${this.formatMoney(totals.totalPending)}</span>
+                        </div>
+                    </div>
+                `;
+
+                // Update KPIs
+                const allTotals = appState.scenarios.map(sc => this.calcScenarioData(sc).total);
+                const minTotal = Math.min(...allTotals);
+                const diffMin = totals.total - minTotal;
+                
+                document.getElementById('kpi-container').innerHTML = `
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 border-l-4 border-l-primary hover:shadow-md transition-shadow">
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Coste Total</p>
+                        <h3 class="text-xl font-bold text-slate-800">${this.formatMoney(totals.total)}</h3>
+                        <p class="text-xs mt-1 ${diffMin === 0 ? 'text-secondary font-medium' : 'text-slate-500'}">
+                            ${diffMin === 0 ? '<i class="fa-solid fa-star"></i> Mejor precio' : `+${this.formatMoney(diffMin)} vs mejor`}
+                        </p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow">
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Por Persona</p>
+                        <h3 class="text-xl font-bold text-slate-800">${this.formatMoney(totals.pp)}</h3>
+                        <p class="text-xs text-slate-500 mt-1">Para ${appState.settings.pax} viajero(s)</p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow">
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Noches Totales</p>
+                        <h3 class="text-xl font-bold text-slate-800">${totals.nights}</h3>
+                        <p class="text-xs text-slate-500 mt-1">${s.accommodations.length} destinos</p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow hidden md:block">
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Media / Día / Persona</p>
+                        <h3 class="text-xl font-bold text-slate-800">${this.formatMoney(totals.dailyPP)}</h3>
+                        <p class="text-xs text-slate-500 mt-1">Gasto promedio</p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 hover:shadow-md transition-shadow border-l-4 border-l-amber-400">
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Falta por Pagar</p>
+                        <h3 class="text-xl font-bold text-slate-800">${this.formatMoney(totals.totalPending)}</h3>
+                        <p class="text-xs text-slate-500 mt-1">${Math.round(100 - percPaid)}% del viaje</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-sm p-4 text-white hover:shadow-md transition-shadow hidden lg:block relative overflow-hidden">
+                        <i class="fa-solid fa-shield-cat absolute -right-2 -bottom-2 text-5xl text-white/10"></i>
+                        <p class="text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">Imprevistos (${appState.settings.contingency}%)</p>
+                        <h3 class="text-xl font-bold text-white">${this.formatMoney(totals.contingency)}</h3>
+                        <p class="text-xs text-slate-400 mt-1">Fondo de seguridad</p>
+                    </div>
+                `;
+
+                this.renderTabContent();
+            },
+
+            renderTabContent() {
+                const container = document.getElementById('tab-content');
+                if(currentTab === 'itinerary') container.innerHTML = this.htmlItinerary();
+                else if(currentTab === 'transport') container.innerHTML = this.htmlTransport();
+                else if(currentTab === 'extras') container.innerHTML = this.htmlExtras();
+                else if(currentTab === 'analysis') { container.innerHTML = this.htmlAnalysis(); this.renderAnalysisCharts(); }
+                else if(currentTab === 'comparator') { container.innerHTML = this.htmlComparator(); this.renderComparatorChart(); }
+            },
+
+            // --- HTML GENERATORS FOR TABS ---
+            
+            htmlItinerary() {
+                const s = this.getActiveScenario();
+                s.accommodations.sort((a,b) => new Date(a.start) - new Date(b.start));
+
+                let html = `
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-800">Alojamientos de la Ruta</h2>
+                            <p class="text-sm text-slate-500">Gestiona noches, hoteles y estado de reservas.</p>
+                        </div>
+                        <button onclick="app.addAcc()" class="bg-primary hover:bg-primaryDark text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors whitespace-nowrap">
+                            <i class="fa-solid fa-plus mr-2"></i> Añadir Destino
+                        </button>
+                    </div>
+                    <div class="space-y-4 relative">
+                `;
+
+                if(s.accommodations.length === 0) html += `<div class="p-12 text-center text-slate-400 bg-white rounded-xl border-2 border-dashed border-slate-200"><i class="fa-solid fa-hotel text-3xl mb-3 text-slate-300"></i><br>Empieza añadiendo tu primer alojamiento.</div>`;
+
+                s.accommodations.forEach((acc, index) => {
+                    const nights = this.calculateNights(acc.start, acc.end);
+                    const totalCost = nights * acc.pricePerNight;
+                    
+                    // Comprobar gaps y validaciones globales
+                    let gapHtml = '';
+                    if(index > 0) {
+                        const prev = s.accommodations[index-1];
+                        const gap = this.calculateNights(prev.end, acc.start);
+                        if(gap > 0) gapHtml = `<div class="flex justify-center -my-2 relative z-10"><span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-3 py-1 rounded-full border border-amber-200 shadow-sm"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Hueco de ${gap} noche(s) sin alojamiento</span></div>`;
+                        else if (gap < 0) gapHtml = `<div class="flex justify-center -my-2 relative z-10"><span class="bg-red-100 text-red-800 text-[10px] font-bold px-3 py-1 rounded-full border border-red-200 shadow-sm"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Solapamiento de ${Math.abs(gap)} noche(s)</span></div>`;
+                    }
+                    
+                    let outOfBounds = false;
+                    if(appState.settings.startDate && acc.start < appState.settings.startDate) outOfBounds = true;
+                    if(appState.settings.endDate && acc.end > appState.settings.endDate) outOfBounds = true;
+
+                    html += `
+                        ${gapHtml}
+                        <div class="bg-white rounded-xl shadow-sm border ${outOfBounds ? 'border-amber-400' : 'border-slate-200'} p-5 transition-all hover:shadow-md relative group">
+                            <button onclick="app.removeAcc('${acc.id}')" class="absolute top-4 right-4 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><i class="fa-solid fa-xmark text-lg"></i></button>
+                            
+                            ${outOfBounds ? `<div class="absolute top-0 right-12 bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-b-md">Fuera de fechas globales</div>` : ''}
+
+                            <div class="grid grid-cols-1 md:grid-cols-12 gap-x-4 gap-y-3">
+                                <div class="col-span-12 md:col-span-3">
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Destino</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" value="${acc.city}" placeholder="Ciudad" class="w-2/3 bg-slate-50 border border-slate-200 text-sm font-medium text-slate-800 rounded-lg p-2 focus:ring-primary focus:border-primary" onchange="app.updateItem('accommodations', '${acc.id}', 'city', this.value)">
+                                        <input type="text" value="${acc.country}" placeholder="País" class="w-1/3 bg-slate-50 border border-slate-200 text-sm text-slate-600 rounded-lg p-2" onchange="app.updateItem('accommodations', '${acc.id}', 'country', this.value)">
+                                    </div>
+                                </div>
+                                <div class="col-span-12 md:col-span-4">
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Fechas (<span class="text-primary">${nights} noches</span>)</label>
+                                    <div class="flex items-center gap-2">
+                                        <input type="date" value="${acc.start}" class="w-1/2 bg-slate-50 border border-slate-200 text-sm text-slate-700 rounded-lg p-2 focus:ring-primary focus:border-primary" onchange="app.updateItem('accommodations', '${acc.id}', 'start', this.value)">
+                                        <span class="text-slate-300"><i class="fa-solid fa-arrow-right"></i></span>
+                                        <input type="date" value="${acc.end}" class="w-1/2 bg-slate-50 border border-slate-200 text-sm text-slate-700 rounded-lg p-2 focus:ring-primary focus:border-primary" onchange="app.updateItem('accommodations', '${acc.id}', 'end', this.value)">
+                                    </div>
+                                </div>
+                                <div class="col-span-6 md:col-span-2">
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Alojamiento</label>
+                                    <input type="text" value="${acc.type}" placeholder="Hotel, Airbnb..." class="w-full bg-slate-50 border border-slate-200 text-sm text-slate-700 rounded-lg p-2 focus:ring-primary" onchange="app.updateItem('accommodations', '${acc.id}', 'type', this.value)">
+                                </div>
+                                <div class="col-span-6 md:col-span-1">
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">€/Noche</label>
+                                    <input type="number" value="${acc.pricePerNight}" class="w-full bg-slate-50 border border-slate-200 text-sm font-medium text-slate-800 rounded-lg p-2 focus:ring-primary ${acc.pricePerNight===0?'border-amber-300 bg-amber-50':''}" onchange="app.updateItem('accommodations', '${acc.id}', 'pricePerNight', this.value)">
+                                </div>
+                                <div class="col-span-12 md:col-span-2 flex flex-col justify-center items-end border-l border-slate-100 pl-4 mt-2 md:mt-0">
+                                    <p class="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Subtotal</p>
+                                    <p class="font-bold text-slate-800 text-lg">${this.formatMoney(totalCost)}</p>
+                                </div>
+
+                                <div class="col-span-12 flex flex-wrap gap-3 mt-1 items-center bg-slate-50/50 p-2 rounded-lg border border-slate-100">
+                                    <select class="status-select ${this.getStatusClass(acc.status)} text-xs font-bold rounded p-1.5 focus:ring-0 outline-none cursor-pointer border" onchange="app.updateItem('accommodations', '${acc.id}', 'status', this.value)">
+                                        <option value="pending" ${acc.status==='pending'?'selected':''}>⏳ PENDIENTE</option>
+                                        <option value="booked" ${acc.status==='booked'?'selected':''}>👍 RESERVADO</option>
+                                        <option value="paid" ${acc.status==='paid'?'selected':''}>✅ PAGADO</option>
+                                    </select>
+                                    
+                                    <div class="flex-1 flex items-center bg-white border border-slate-200 rounded px-2 overflow-hidden">
+                                        <i class="fa-solid fa-link text-slate-300 text-xs mr-2"></i>
+                                        <input type="url" value="${acc.link}" placeholder="URL de la reserva (Booking, Airbnb...)" class="w-full text-xs p-1.5 border-none focus:ring-0 bg-transparent text-primary" onchange="app.updateItem('accommodations', '${acc.id}', 'link', this.value)">
+                                        ${acc.link ? `<a href="${acc.link}" target="_blank" class="text-slate-400 hover:text-primary ml-2"><i class="fa-solid fa-external-link-alt text-xs"></i></a>` : ''}
+                                    </div>
+                                    
+                                    <div class="flex-1 min-w-[200px] flex items-center bg-white border border-slate-200 rounded px-2">
+                                        <i class="fa-regular fa-comment text-slate-300 text-xs mr-2"></i>
+                                        <input type="text" value="${acc.notes}" placeholder="Notas (ej. Desayuno incl.)" class="w-full text-xs p-1.5 border-none focus:ring-0 bg-transparent text-slate-600" onchange="app.updateItem('accommodations', '${acc.id}', 'notes', this.value)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+                return html;
+            },
+
+            htmlTransport() {
+                const s = this.getActiveScenario();
+                s.transports.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+                let html = `
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-800">Transportes Interurbanos</h2>
+                            <p class="text-sm text-slate-500">Vuelos, ferries, alquiler de coche, trenes y estado.</p>
+                        </div>
+                        <button onclick="app.addTrans()" class="bg-primary hover:bg-primaryDark text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors whitespace-nowrap">
+                            <i class="fa-solid fa-plus mr-2"></i> Añadir Transporte
+                        </button>
+                    </div>
+                    <div class="space-y-4">
+                `;
+
+                if(s.transports.length === 0) html += `<div class="p-12 text-center text-slate-400 bg-white rounded-xl border-2 border-dashed border-slate-200"><i class="fa-solid fa-plane-slash text-3xl mb-3 text-slate-300"></i><br>No hay transportes en este itinerario.</div>`;
+
+                const pax = appState.settings.pax;
+
+                s.transports.forEach(t => {
+                    const totalCost = t.isPerPerson ? (t.priceTotal * pax) : t.priceTotal;
+                    
+                    const icons = {
+                        'Vuelo': 'fa-plane', 'Ferry': 'fa-ship', 'Coche Alquiler': 'fa-car', 'Tren/Bus': 'fa-train', 'Taxi/Traslado': 'fa-taxi', 'Gasolina': 'fa-gas-pump'
+                    };
+                    const icon = icons[t.type] || 'fa-route';
+
+                    html += `
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 transition-all hover:shadow-md relative group">
+                            <button onclick="app.removeTrans('${t.id}')" class="absolute top-4 right-4 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all z-10"><i class="fa-solid fa-xmark text-lg"></i></button>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-12 gap-x-4 gap-y-3">
+                                <div class="col-span-12 md:col-span-3">
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Ruta</label>
+                                    <div class="flex items-center gap-2">
+                                        <input type="text" value="${t.origin}" placeholder="Origen" class="w-1/2 bg-slate-50 border border-slate-200 text-sm font-medium text-slate-800 rounded-lg p-2" onchange="app.updateItem('transports', '${t.id}', 'origin', this.value)">
+                                        <span class="text-slate-300 text-xs"><i class="fa-solid fa-arrow-right"></i></span>
+                                        <input type="text" value="${t.destination}" placeholder="Destino" class="w-1/2 bg-slate-50 border border-slate-200 text-sm font-medium text-slate-800 rounded-lg p-2" onchange="app.updateItem('transports', '${t.id}', 'destination', this.value)">
+                                    </div>
+                                </div>
+                                <div class="col-span-6 md:col-span-2">
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Día</label>
+                                    <input type="date" value="${t.date}" class="w-full bg-slate-50 border border-slate-200 text-sm text-slate-700 rounded-lg p-2" onchange="app.updateItem('transports', '${t.id}', 'date', this.value)">
+                                </div>
+                                <div class="col-span-6 md:col-span-2">
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tipo & Cía.</label>
+                                    <div class="flex border border-slate-200 rounded-lg bg-slate-50 overflow-hidden">
+                                        <div class="flex items-center justify-center px-2 bg-slate-100 border-r border-slate-200 text-slate-400" title="${t.type}">
+                                            <i class="fa-solid ${icon}"></i>
+                                        </div>
+                                        <div class="flex-1 flex flex-col">
+                                            <select class="w-full bg-transparent border-none text-xs p-1 focus:ring-0 text-slate-700 font-medium pb-0" onchange="app.updateItem('transports', '${t.id}', 'type', this.value)">
+                                                <option value="Vuelo" ${t.type==='Vuelo'?'selected':''}>Vuelo</option>
+                                                <option value="Ferry" ${t.type==='Ferry'?'selected':''}>Ferry</option>
+                                                <option value="Coche Alquiler" ${t.type==='Coche Alquiler'?'selected':''}>Coche</option>
+                                                <option value="Tren/Bus" ${t.type==='Tren/Bus'?'selected':''}>Tren/Bus</option>
+                                                <option value="Taxi/Traslado" ${t.type==='Taxi/Traslado'?'selected':''}>Transfer</option>
+                                                <option value="Gasolina" ${t.type==='Gasolina'?'selected':''}>Gasolina</option>
+                                            </select>
+                                            <input type="text" value="${t.company}" placeholder="Aerolínea/Cía." class="w-full bg-transparent border-none text-[10px] p-1 pt-0 text-slate-500 focus:ring-0" onchange="app.updateItem('transports', '${t.id}', 'company', this.value)">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-span-6 md:col-span-2 flex items-end gap-2">
+                                    <div class="flex-1">
+                                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Importe</label>
+                                        <input type="number" value="${t.priceTotal}" class="w-full bg-slate-50 border border-slate-200 text-sm font-medium text-slate-800 rounded-lg p-2 ${t.priceTotal===0?'border-amber-300 bg-amber-50':''}" onchange="app.updateItem('transports', '${t.id}', 'priceTotal', this.value)">
+                                    </div>
+                                    <label class="flex items-center justify-center gap-1 cursor-pointer bg-slate-100 p-2 rounded-lg border border-slate-200 mb-0.5" title="¿Precio es por persona?">
+                                        <input type="checkbox" ${t.isPerPerson ? 'checked' : ''} class="rounded text-primary focus:ring-primary h-4 w-4" onchange="app.updateItem('transports', '${t.id}', 'isPerPerson', this.checked)">
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase">x Pax</span>
+                                    </label>
+                                </div>
+                                <div class="col-span-12 md:col-span-3 flex flex-col justify-center items-end border-l border-slate-100 pl-4 pr-6 mt-2 md:mt-0">
+                                    <p class="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Subtotal Transporte</p>
+                                    <p class="font-bold text-slate-800 text-lg">${this.formatMoney(totalCost)}</p>
+                                </div>
+                                
+                                <div class="col-span-12 flex flex-wrap gap-3 mt-1 items-center bg-slate-50/50 p-2 rounded-lg border border-slate-100">
+                                    <select class="status-select ${this.getStatusClass(t.status)} text-xs font-bold rounded p-1.5 focus:ring-0 outline-none cursor-pointer border" onchange="app.updateItem('transports', '${t.id}', 'status', this.value)">
+                                        <option value="pending" ${t.status==='pending'?'selected':''}>⏳ PENDIENTE</option>
+                                        <option value="booked" ${t.status==='booked'?'selected':''}>👍 RESERVADO</option>
+                                        <option value="paid" ${t.status==='paid'?'selected':''}>✅ PAGADO</option>
+                                    </select>
+                                    
+                                    <div class="flex-1 flex items-center bg-white border border-slate-200 rounded px-2 overflow-hidden">
+                                        <i class="fa-solid fa-link text-slate-300 text-xs mr-2"></i>
+                                        <input type="url" value="${t.link}" placeholder="URL (Skyscanner, web aerolínea...)" class="w-full text-xs p-1.5 border-none focus:ring-0 bg-transparent text-primary" onchange="app.updateItem('transports', '${t.id}', 'link', this.value)">
+                                        ${t.link ? `<a href="${t.link}" target="_blank" class="text-slate-400 hover:text-primary ml-2"><i class="fa-solid fa-external-link-alt text-xs"></i></a>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+                return html;
+            },
+
+            htmlExtras() {
+                const s = this.getActiveScenario();
+                const pax = appState.settings.pax;
+
+                let html = `
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        
+                        <div>
+                            <div class="flex justify-between items-center mb-6">
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-800">Presupuestos y Extras</h2>
+                                    <p class="text-sm text-slate-500">Seguros, visados, comidas, entradas...</p>
+                                </div>
+                                <button onclick="app.addExtra()" class="bg-primary hover:bg-primaryDark text-white px-3 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+                            <div class="space-y-3">
+                `;
+
+                if(s.extras.length === 0) html += `<div class="p-6 text-center text-slate-400 bg-white rounded-xl border-2 border-dashed border-slate-200 text-sm">No hay gastos extra.</div>`;
+
+                s.extras.forEach(e => {
+                    const totalCost = e.isPerPerson ? (e.amount * pax) : e.amount;
+                    html += `
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 relative group hover:shadow-md transition-all">
+                            <button onclick="app.removeExtra('${e.id}')" class="absolute top-3 right-3 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all bg-white rounded-full"><i class="fa-solid fa-circle-xmark"></i></button>
+                            <div class="flex flex-wrap gap-2 items-center pr-6">
+                                <input type="text" value="${e.name}" placeholder="Concepto" class="flex-1 min-w-[120px] bg-slate-50 border border-slate-200 text-sm font-medium rounded p-2 focus:ring-primary" onchange="app.updateItem('extras', '${e.id}', 'name', this.value)">
+                                
+                                <select class="w-28 bg-slate-50 border border-slate-200 text-xs rounded p-2 focus:ring-primary" onchange="app.updateItem('extras', '${e.id}', 'category', this.value)">
+                                    <option value="Comida" ${e.category==='Comida'?'selected':''}>Comida</option>
+                                    <option value="Actividades" ${e.category==='Actividades'?'selected':''}>Actividades</option>
+                                    <option value="Seguros" ${e.category==='Seguros'?'selected':''}>Seguros</option>
+                                    <option value="Visados" ${e.category==='Visados'?'selected':''}>Visados</option>
+                                    <option value="Compras" ${e.category==='Compras'?'selected':''}>Compras</option>
+                                    <option value="Otros" ${e.category==='Otros'?'selected':''}>Otros</option>
+                                </select>
+                                
+                                <div class="flex items-center gap-1">
+                                    <input type="number" value="${e.amount}" class="w-20 bg-slate-50 border border-slate-200 text-sm rounded p-2 text-right ${e.amount===0?'border-amber-300 bg-amber-50':''}" onchange="app.updateItem('extras', '${e.id}', 'amount', this.value)">
+                                    <label class="flex items-center gap-1 cursor-pointer bg-slate-100 p-2 rounded border border-slate-200" title="x Persona">
+                                        <input type="checkbox" ${e.isPerPerson ? 'checked' : ''} class="rounded text-primary focus:ring-primary h-3 w-3" onchange="app.updateItem('extras', '${e.id}', 'isPerPerson', this.checked)">
+                                        <i class="fa-solid fa-user text-[10px] text-slate-500"></i>
+                                    </label>
+                                </div>
+                                
+                                <select class="status-select ${this.getStatusClass(e.status)} text-[10px] font-bold rounded p-2 focus:ring-0 outline-none cursor-pointer border w-24" onchange="app.updateItem('extras', '${e.id}', 'status', this.value)">
+                                    <option value="pending" ${e.status==='pending'?'selected':''}>PENDIENTE</option>
+                                    <option value="paid" ${e.status==='paid'?'selected':''}>PAGADO</option>
+                                </select>
+
+                                <div class="w-full sm:w-20 text-right font-bold text-slate-800 text-sm border-t sm:border-t-0 sm:border-l border-slate-200 pt-2 sm:pt-0 sm:pl-2 mt-1 sm:mt-0">${this.formatMoney(totalCost)}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center mb-6">
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-800">Checklist & Tareas</h2>
+                                    <p class="text-sm text-slate-500">Documentación, reservas pendientes...</p>
+                                </div>
+                                <button onclick="app.addChecklist()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                                <ul class="space-y-3">
+                `;
+
+                if(!s.checklist || s.checklist.length === 0) html += `<div class="text-center text-slate-400 text-sm py-4"><i class="fa-solid fa-list-check text-2xl mb-2"></i><br>Todo listo. Añade tareas.</div>`;
+
+                (s.checklist || []).forEach(c => {
+                    html += `
+                        <li class="flex items-center gap-3 group bg-slate-50 p-2 rounded border border-slate-100 hover:border-slate-300 transition-colors">
+                            <input type="checkbox" ${c.done ? 'checked' : ''} class="rounded border-slate-300 text-secondary focus:ring-secondary h-5 w-5 cursor-pointer ml-1" onchange="app.updateItem('checklist', '${c.id}', 'done', this.checked)">
+                            <input type="text" value="${c.task}" class="flex-1 bg-transparent border-none text-sm p-1 focus:ring-0 ${c.done ? 'line-through text-slate-400' : 'text-slate-700 font-medium'}" placeholder="Tarea..." onchange="app.updateItem('checklist', '${c.id}', 'task', this.value)">
+                            <button onclick="app.removeChecklist('${c.id}')" class="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all mr-1"><i class="fa-solid fa-trash-can"></i></button>
+                        </li>
+                    `;
+                });
+
+                html += `
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return html;
+            },
+
+            htmlAnalysis() {
+                const s = this.getActiveScenario();
+                const totals = this.calcScenarioData(s);
+                const allScenarios = appState.scenarios.map(sc => ({ id: sc.id, name: sc.name, ...this.calcScenarioData(sc) }));
+                
+                allScenarios.sort((a,b) => a.total - b.total);
+                const cheapest = allScenarios[0];
+                const mostExp = allScenarios[allScenarios.length-1];
+
+                let insights = [];
+
+                if(s.id === cheapest.id && allScenarios.length > 1) {
+                    insights.push({ icon: 'fa-trophy text-yellow-500 bg-yellow-100', title: 'Opción más barata', text: `Este es tu <b>escenario más económico</b>. Ahorras ${this.formatMoney(mostExp.total - s.total)} frente al más caro.` });
+                } else if (allScenarios.length > 1) {
+                    insights.push({ icon: 'fa-arrow-trend-down text-emerald-500 bg-emerald-100', title: 'Margen de mejora', text: `El escenario "${cheapest.name.substring(0,15)}..." es <b>${this.formatMoney(s.total - cheapest.total)} más barato</b>.` });
+                }
+
+                if(totals.undefinedCosts > 0) {
+                    insights.push({ icon: 'fa-triangle-exclamation text-amber-500 bg-amber-100', title: 'Costes sin definir', text: `Tienes <b>${totals.undefinedCosts} partida(s)</b> con coste 0€. Rellénalas para un cálculo real.` });
+                }
+
+                // Breakdown percentages
+                const sub = totals.acc + totals.trans + totals.extras;
+                const pAcc = sub > 0 ? Math.round((totals.acc / sub)*100) : 0;
+                const pTrans = sub > 0 ? Math.round((totals.trans / sub)*100) : 0;
+
+                if(pAcc > 50) insights.push({ icon: 'fa-bed text-indigo-500 bg-indigo-100', title: 'Alojamiento elevado', text: `El alojamiento supone el <b>${pAcc}%</b> del coste total. Revisa opciones más baratas.` });
+                if(pTrans > 40) insights.push({ icon: 'fa-plane text-sky-500 bg-sky-100', title: 'Transporte caro', text: `Alto gasto en movilidad (<b>${pTrans}%</b>). Considera reducir saltos entre destinos.` });
+
+                let countryInsights = '';
+                for(let c in totals.countries) {
+                    const pC = Math.round((totals.countries[c] / totals.acc)*100);
+                    countryInsights += `<div class="flex justify-between items-center mb-2"><span class="text-xs font-medium text-slate-600">${c}</span><span class="text-xs font-bold text-slate-800">${pC}%</span></div>`;
+                }
+
+                let html = `
+                    <div class="mb-8">
+                        <h2 class="text-xl font-bold text-slate-800 mb-4">Insights & Alertas</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            ${insights.map(i => `
+                                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${i.icon.split(' ').slice(1).join(' ')}">
+                                            <i class="fa-solid ${i.icon.split(' ')[0]} text-sm"></i>
+                                        </div>
+                                        <h4 class="text-sm font-bold text-slate-800">${i.title}</h4>
+                                    </div>
+                                    <p class="text-xs text-slate-600 leading-relaxed">${i.text}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 lg:col-span-1 flex flex-col">
+                            <h3 class="text-sm font-bold text-slate-700 mb-4 text-center">Distribución del Gasto</h3>
+                            <div class="relative h-48 w-full flex-1"><canvas id="chart-breakdown"></canvas></div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 lg:col-span-1 flex flex-col">
+                            <h3 class="text-sm font-bold text-slate-700 mb-4 text-center">Estado Financiero</h3>
+                            <div class="relative h-48 w-full flex-1"><canvas id="chart-status"></canvas></div>
+                        </div>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 lg:col-span-1">
+                            <h3 class="text-sm font-bold text-slate-700 mb-4">Alojamiento por País</h3>
+                            <div class="space-y-1">${countryInsights || '<p class="text-sm text-slate-400">Sin datos</p>'}</div>
+                            
+                            <h3 class="text-sm font-bold text-slate-700 mt-6 mb-3">Top 3 Gastos (Subtotales)</h3>
+                            <div class="space-y-2">
+                                ${this.getTopExpensesHTML(s)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return html;
+            },
+
+            getTopExpensesHTML(s) {
+                const pax = appState.settings.pax;
+                let items = [];
+                s.accommodations.forEach(a => items.push({ name: `${a.type} en ${a.city}`, cost: a.pricePerNight * this.calculateNights(a.start, a.end), icon: 'fa-bed text-indigo-500' }));
+                s.transports.forEach(t => items.push({ name: `${t.type} ${t.origin}-${t.destination}`, cost: t.isPerPerson ? t.priceTotal * pax : t.priceTotal, icon: 'fa-plane text-sky-500' }));
+                s.extras.forEach(e => items.push({ name: e.name, cost: e.isPerPerson ? e.amount * pax : e.amount, icon: 'fa-receipt text-amber-500' }));
+                
+                items.sort((a,b) => b.cost - a.cost);
+                return items.slice(0,3).map(i => `
+                    <div class="flex items-center justify-between text-xs p-2 bg-slate-50 rounded border border-slate-100">
+                        <div class="flex items-center gap-2 truncate pr-2"><i class="fa-solid ${i.icon} w-4 text-center"></i><span class="truncate">${i.name}</span></div>
+                        <span class="font-bold text-slate-800">${this.formatMoney(i.cost)}</span>
+                    </div>
+                `).join('');
+            },
+
+            htmlComparator() {
+                const all = appState.scenarios.map(sc => ({ id: sc.id, name: sc.name, ...this.calcScenarioData(sc) }));
+                all.sort((a,b) => a.total - b.total);
+                const minTotal = all[0].total;
+
+                let html = `
+                    <div class="mb-8">
+                        <h2 class="text-xl font-bold text-slate-800 mb-2">Comparador Global de Escenarios</h2>
+                        <p class="text-sm text-slate-500 mb-6">Analiza todas tus opciones de un vistazo. El escenario más barato se marca en verde.</p>
+                        
+                        <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200">
+                            <table class="w-full text-sm text-left text-slate-600">
+                                <thead class="text-[10px] text-slate-400 uppercase bg-slate-50 border-b border-slate-200 font-bold tracking-wider">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-4">Escenario</th>
+                                        <th scope="col" class="px-4 py-4 text-center">Noches</th>
+                                        <th scope="col" class="px-4 py-4 text-right">Alojamiento</th>
+                                        <th scope="col" class="px-4 py-4 text-right">Transporte</th>
+                                        <th scope="col" class="px-4 py-4 text-right">Extras</th>
+                                        <th scope="col" class="px-6 py-4 text-right text-slate-700">Total Final</th>
+                                        <th scope="col" class="px-6 py-4 text-right">Diferencia</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                `;
+
+                all.forEach((s, index) => {
+                    const isCheapest = index === 0;
+                    const diff = s.total - minTotal;
+                    
+                    html += `
+                        <tr class="bg-white hover:bg-slate-50 transition-colors ${s.id === appState.activeScenarioId ? 'bg-blue-50/30' : ''}">
+                            <td class="px-6 py-4 font-bold text-slate-800">
+                                ${s.name} ${s.id === appState.activeScenarioId ? '<span class="ml-2 bg-primary text-white text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider">Actual</span>' : ''}
+                            </td>
+                            <td class="px-4 py-4 text-center font-medium">${s.nights}</td>
+                            <td class="px-4 py-4 text-right">${this.formatMoney(s.acc)}</td>
+                            <td class="px-4 py-4 text-right">${this.formatMoney(s.trans)}</td>
+                            <td class="px-4 py-4 text-right">${this.formatMoney(s.extras)}</td>
+                            <td class="px-6 py-4 text-right font-bold text-lg ${isCheapest ? 'text-secondary' : 'text-slate-900'}">${this.formatMoney(s.total)}</td>
+                            <td class="px-6 py-4 text-right">
+                                ${isCheapest ? '<span class="text-secondary font-bold text-xs bg-emerald-50 px-2 py-1 rounded border border-emerald-100"><i class="fa-solid fa-trophy mr-1"></i> Mejor</span>' : `<span class="text-slate-400 font-medium">+${this.formatMoney(diff)}</span>`}
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 mt-6">
+                        <h3 class="text-sm font-bold text-slate-700 mb-4">Comparativa Visual de Costes</h3>
+                        <div class="relative h-72 w-full"><canvas id="chart-compare"></canvas></div>
+                    </div>
+                `;
+
+                return html;
+            },
+
+            // --- CHARTS LOGIC ---
+            renderAnalysisCharts() {
+                const s = this.getActiveScenario();
+                const totals = this.calcScenarioData(s);
+
+                Chart.defaults.font.family = "'Inter', sans-serif";
+                Chart.defaults.color = '#64748b';
+
+                // 1. Breakdown Chart (Doughnut)
+                if(charts.breakdown) charts.breakdown.destroy();
+                const ctxB = document.getElementById('chart-breakdown').getContext('2d');
+                charts.breakdown = new Chart(ctxB, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Alojamiento', 'Transporte', 'Extras', 'Imprevistos'],
+                        datasets: [{
+                            data: [totals.acc, totals.trans, totals.extras, totals.contingency],
+                            backgroundColor: ['#6366f1', '#0ea5e9', '#f59e0b', '#94a3b8'],
+                            borderWidth: 2, borderColor: '#ffffff', hoverOffset: 4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }, cutout: '65%' }
+                });
+
+                // 2. Status Chart (Pie)
+                if(charts.status) charts.status.destroy();
+                const ctxS = document.getElementById('chart-status').getContext('2d');
+                charts.status = new Chart(ctxS, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Pagado', 'Pendiente (incl. imprevistos)'],
+                        datasets: [{
+                            data: [totals.totalPaid, totals.totalPending],
+                            backgroundColor: ['#10b981', '#fcd34d'],
+                            borderWidth: 2, borderColor: '#ffffff', hoverOffset: 4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } } }
+                });
+            },
+
+            renderComparatorChart() {
+                const all = appState.scenarios.map(sc => ({ name: sc.name, ...this.calcScenarioData(sc) }));
+                
+                if(charts.compare) charts.compare.destroy();
+                const ctxC = document.getElementById('chart-compare').getContext('2d');
+                
+                charts.compare = new Chart(ctxC, {
+                    type: 'bar',
+                    data: {
+                        labels: all.map(a => a.name.length > 20 ? a.name.substring(0,20) + '...' : a.name),
+                        datasets: [
+                            { label: 'Alojamiento', data: all.map(a => a.acc), backgroundColor: '#6366f1', borderRadius: {topLeft: 0, topRight: 0} },
+                            { label: 'Transporte', data: all.map(a => a.trans), backgroundColor: '#0ea5e9' },
+                            { label: 'Extras', data: all.map(a => a.extras), backgroundColor: '#f59e0b' },
+                            { label: 'Imprevistos', data: all.map(a => a.contingency), backgroundColor: '#cbd5e1', borderRadius: {topLeft: 4, topRight: 4} }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: { x: { stacked: true, grid:{display:false} }, y: { stacked: true, beginAtZero: true, border:{display:false} } },
+                        plugins: { legend: { position: 'top' } }
+                    }
+                });
+            },
+
+            // --- CRUD ACTIONS ---
+            genId() { return Math.random().toString(36).substr(2, 9); },
+
+            addAcc() {
+                const s = this.getActiveScenario();
+                let start = appState.settings.startDate || new Date().toISOString().split('T')[0];
+                if(s.accommodations.length > 0) {
+                    s.accommodations.sort((a,b) => new Date(a.start) - new Date(b.start));
+                    start = s.accommodations[s.accommodations.length-1].end;
+                }
+                let end = new Date(start); end.setDate(end.getDate() + 1); end = end.toISOString().split('T')[0];
+                s.accommodations.push({ id: 'a'+this.genId(), city: '', country: '', start: start, end: end, type: 'Hotel', pricePerNight: 0, link: '', status: 'pending', notes: '' });
+                this.save();
+            },
+            removeAcc(id) { const s = this.getActiveScenario(); s.accommodations = s.accommodations.filter(x => x.id !== id); this.save(); },
+
+            addTrans() {
+                const s = this.getActiveScenario();
+                s.transports.push({ id: 't'+this.genId(), origin: '', destination: '', type: 'Vuelo', company: '', priceTotal: 0, isPerPerson: true, date: '', status: 'pending', link: '' });
+                this.save();
+            },
+            removeTrans(id) { const s = this.getActiveScenario(); s.transports = s.transports.filter(x => x.id !== id); this.save(); },
+
+            addExtra() {
+                const s = this.getActiveScenario();
+                s.extras.push({ id: 'e'+this.genId(), name: 'Nuevo gasto', category: 'Otros', amount: 0, isPerPerson: true, status: 'pending' });
+                this.save();
+            },
+            removeExtra(id) { const s = this.getActiveScenario(); s.extras = s.extras.filter(x => x.id !== id); this.save(); },
+
+            addChecklist() {
+                const s = this.getActiveScenario();
+                if(!s.checklist) s.checklist = [];
+                s.checklist.push({ id: 'c'+this.genId(), task: 'Nueva tarea', done: false });
+                this.save();
+            },
+            removeChecklist(id) { const s = this.getActiveScenario(); if(s.checklist) s.checklist = s.checklist.filter(x => x.id !== id); this.save(); },
+
+            updateItem(collection, id, field, value) {
+                const s = this.getActiveScenario();
+                const item = s[collection].find(x => x.id === id);
+                if(item) {
+                    item[field] = (field === 'pricePerNight' || field === 'priceTotal' || field === 'amount') ? Number(value) : value;
+                    this.save();
+                }
+            }
+        };
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => { app.init(); });
+
+    </script>
+</body>
+</html>
+    
+  </body>
+  
+</html>
